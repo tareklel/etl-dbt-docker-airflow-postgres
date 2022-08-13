@@ -1,0 +1,99 @@
+version: '3.7'
+services:
+  postgres-source:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: pssd
+      POSTGRES_USER : user1
+      POSTGRES_DB : sourcedb
+      POSTGRES_SCHEMA: source
+    expose:
+      - 5432
+    restart: always
+    volumes:
+      - ./scripts_postgres_source/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./staging:/staging
+  
+  postgres-destination:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: pssd
+      POSTGRES_USER : dbtuser
+      POSTGRES_DB : dbtdb
+      DBT_SCHEMA: dbt
+      DBT_RAW_DATA_SCHEMA: dbt_raw_data
+    expose:
+      - 5432
+    restart: always
+    volumes:
+      - ./scripts_postgres_destination/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./staging:/staging
+      - ./seed:/seed
+
+  postgres-airflow:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: pssd
+      POSTGRES_USER : airflowuser
+      POSTGRES_DB : airflowdb
+      AIRFLOW_SCHEMA: airflow
+    expose:
+      - 5432
+    restart: always
+    volumes:
+      - ./scripts_postgres_airflow/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  airflow:
+    build: .
+    restart: always
+    environment: 
+      DBT_PROFILES_DIR: /dbt
+      AIRFLOW_HOME: /airflow
+      STAGING: /staging
+      AIRFLOW__CORE__DAGS_FOLDER: /airflow/dags
+      AIRFLOW__CORE__PARALLELISM: 4
+      AIRFLOW__CORE__DAG_CONCURRENCY: 4
+      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 4
+      # AIRFLOW__ADMIN__HIDE_SENSITIVE_VARIABLE_FIELDS: False
+      # Postgres details need to match with the values defined in the postgres-airflow service
+      POSTGRES_USER: airflowuser
+      POSTGRES_PASSWORD: pssd
+      POSTGRES_HOST: postgres-airflow
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: airflowdb
+      # postgres-dbt connection details. Required for the inital loading of seed data
+      # Credentials need to match with service postgres-dbt
+      DESTINATION_POSTGRES_PASSWORD: pssd
+      DESTINATION_POSTGRES_USER : dbtuser
+      DESTINATION_POSTGRES_DB : dbtdb
+      DESTINATION_DBT_SCHEMA: dbt
+      DESTINATION_DBT_RAW_DATA_SCHEMA: dbt_raw_data
+      DESTINATION_POSTGRES_HOST: postgres-destination
+      # Postgres source details. Credentials need to match postgres-source
+      SOURCE_POSTGRES_PASSWORD: pssd
+      SOURCE_POSTGRES_USER : user1
+      SOURCE_POSTGRES_DB : sourcedb
+      SOURCE_POSTGRES_SCHEMA: source
+      SOURCE_POSTGRES_HOST: postgres-source
+
+    depends_on:
+      - postgres-airflow
+      - postgres-source
+      - postgres-destination
+    ports:
+      - 8000:8080
+    volumes:
+      - ./dbt:/dbt
+      - ./airflow:/airflow
+      - ./staging:/staging
+      - ./py_scripts:/airflow/dags/py_scripts
+  
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    depends_on:
+      - postgres-airflow
+      - postgres-destination
+      - postgres-source

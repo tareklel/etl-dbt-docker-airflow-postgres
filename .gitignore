@@ -1,0 +1,8 @@
+.env
+__pycache__
+airflow/logs/
+airflow-webserver.pid
+target/
+dbt_modules/
+logs/
+.user.yml

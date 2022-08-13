@@ -1,0 +1,30 @@
+version: 2
+sources:
+  - name: staging
+    schema: staging
+    database: dbtdb
+    tables:
+      - name: suppliers
+        identifier: suppliers
+      - name: products
+        identifier: products
+      - name: customers
+        identifier: customers
+      - name: company
+        identifier: company
+      - name: customer_order
+        identifier: customer_order
+      - name: company_order
+        identifier: company_order
+      - name: supplier_inventory
+        identifier: supplier_inventory
+      - name: company_catalogue
+        identifier: company_catalogue
+      - name: access_logs
+        identifier: access_logs
+  - name: dbt_dwh
+    schema: dbt_dwh
+    database: dbtdb
+    tables:
+      - name: ip_to_country
+        identifier: ip_to_country
